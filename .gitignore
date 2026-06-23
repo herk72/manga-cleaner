@@ -13,12 +13,14 @@ build/
 venv/
 ENV/
 
-# Runtime data
+# Runtime data — downloaded automatically at first run
 uploads/
 downloads/
 temp/
 models/*.onnx
 models/*.pt
+models/*.bin
+push_to_github.py
 bot/bot_session*
 bot/*.session
 *.session
