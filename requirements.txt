@@ -1,0 +1,16 @@
+fastapi
+uvicorn[standard]
+python-multipart
+celery[redis]
+redis
+Pillow
+numpy
+opencv-python-headless
+torch
+requests
+aiofiles
+python-dotenv
+telethon
+httpx
+tqdm
+onnxruntime
