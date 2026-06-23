@@ -1,0 +1,120 @@
+version: "3.9"
+
+services:
+
+  redis:
+    image: redis:7-alpine
+    container_name: manga-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  iopaint:
+    image: cwq1913/iopaint:latest
+    container_name: manga-iopaint
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    # لو عندك GPU فعّل السطور دي:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+    environment:
+      - MODEL=lama
+      - DEVICE=cpu        # غيّره لـ cuda لو عندك GPU
+      - PORT=8080
+      - HOST=0.0.0.0
+    volumes:
+      - iopaint_models:/root/.cache
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: manga-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - IOPAINT_URL=http://iopaint:8080
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_API_ID=${TELEGRAM_API_ID}
+      - TELEGRAM_API_HASH=${TELEGRAM_API_HASH}
+    volumes:
+      - ./uploads:/app/uploads
+      - ./downloads:/app/downloads
+      - ./temp:/app/temp
+      - ./models:/app/models
+    depends_on:
+      redis:
+        condition: service_healthy
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: manga-worker
+    restart: unless-stopped
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - IOPAINT_URL=http://iopaint:8080
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_API_ID=${TELEGRAM_API_ID}
+      - TELEGRAM_API_HASH=${TELEGRAM_API_HASH}
+    volumes:
+      - ./uploads:/app/uploads
+      - ./downloads:/app/downloads
+      - ./temp:/app/temp
+      - ./models:/app/models
+    depends_on:
+      redis:
+        condition: service_healthy
+    command: celery -A tasks.worker.celery_app worker --loglevel=info --concurrency=2
+
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: manga-bot
+    restart: unless-stopped
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - MANGA_API_URL=http://api:8000
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_API_ID=${TELEGRAM_API_ID}
+      - TELEGRAM_API_HASH=${TELEGRAM_API_HASH}
+    volumes:
+      - ./temp:/app/temp
+      - ./downloads:/app/downloads
+    depends_on:
+      api:
+        condition: service_healthy
+    command: python3 bot/telegram_bot.py
+
+volumes:
+  redis_data:
+  iopaint_models:
