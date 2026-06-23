@@ -14,3 +14,4 @@ telethon
 httpx
 tqdm
 onnxruntime
+aiogram
