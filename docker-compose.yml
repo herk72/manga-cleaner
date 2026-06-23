@@ -15,12 +15,13 @@ services:
       retries: 5
 
   iopaint:
-    image: cwq1913/iopaint:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.iopaint
     container_name: manga-iopaint
     restart: unless-stopped
     ports:
       - "8080:8080"
-    # Quadro P1000 — CUDA مفعّل
     deploy:
       resources:
         reservations:
@@ -28,11 +29,6 @@ services:
             - driver: nvidia
               count: all
               capabilities: [gpu]
-    environment:
-      - MODEL=lama
-      - DEVICE=cuda
-      - PORT=8080
-      - HOST=0.0.0.0
     volumes:
       - iopaint_models:/root/.cache
     healthcheck:
@@ -55,7 +51,6 @@ services:
     environment:
       - REDIS_URL=redis://redis:6379/0
       - IOPAINT_URL=http://iopaint:8080
-      - MANGA_API_URL=http://api:8000
     volumes:
       - ./uploads:/app/uploads
       - ./downloads:/app/downloads
@@ -102,7 +97,6 @@ services:
     env_file:
       - .env
     environment:
-      - REDIS_URL=redis://redis:6379/0
       - MANGA_API_URL=http://api:8000
     volumes:
       - ./temp:/app/temp
