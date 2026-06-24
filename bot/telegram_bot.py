@@ -213,7 +213,10 @@ async def handle_image(message: Message, progress: Message, dl_path: str, filena
             await message.answer_document(doc_file, caption="✅ الصورة اتبيضت!")
             await progress.delete()
         else:
-            detail = resp.json().get("detail", resp.text[:200])
+            try:
+                detail = resp.json().get("detail", resp.text[:200])
+            except Exception:
+                detail = resp.text[:200] or f"HTTP {resp.status_code}"
             await progress.edit_text(f"❌ فشل التبييض: {detail}")
     except Exception as e:
         await progress.edit_text(f"❌ خطأ: {e}")
