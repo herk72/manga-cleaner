@@ -206,10 +206,10 @@ async def handle_image(message: Message, progress: Message, dl_path: str, filena
                     files={"file": (filename, f, "image/png")},
                 )
         if resp.status_code == 200:
-            out_path = dl_path.replace(Path(dl_path).suffix, "_cleaned.png")
+            out_path = dl_path.replace(Path(dl_path).suffix, "_cleaned.jpg")
             with open(out_path, "wb") as f:
                 f.write(resp.content)
-            doc_file = FSInputFile(out_path, filename="cleaned.png")
+            doc_file = FSInputFile(out_path, filename="cleaned.jpg")
             await message.answer_document(doc_file, caption="✅ الصورة اتبيضت!")
             await progress.delete()
         else:
