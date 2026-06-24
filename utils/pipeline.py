@@ -1,5 +1,6 @@
 """
 Core pipeline: detection → mask → inpainting → clean image.
+Output is always JPEG (quality 95) for smaller size with high quality.
 """
 
 import os
@@ -16,8 +17,19 @@ from models.inpainter import get_inpainter
 
 logger = logging.getLogger(__name__)
 
+# JPEG encode params — quality 95 keeps manga art sharp
+JPEG_PARAMS = [cv2.IMWRITE_JPEG_QUALITY, 95]
 
-def process_single_page(image_path: str, output_path: str, conf_threshold: float = 0.3) -> dict:
+
+def _save_jpg(image: np.ndarray, output_path: str) -> str:
+    """Save image as JPEG regardless of the output_path extension."""
+    p = Path(output_path)
+    jpg_path = str(p.with_suffix(".jpg"))
+    cv2.imwrite(jpg_path, image, JPEG_PARAMS)
+    return jpg_path
+
+
+def process_single_page(image_path: str, output_path: str, conf_threshold: float = 0.5) -> dict:
     """
     Clean one manga page.
 
@@ -33,20 +45,21 @@ def process_single_page(image_path: str, output_path: str, conf_threshold: float
         detections = detector.detect(img, conf_threshold=conf_threshold)
         logger.info("Detected %d text regions in %s", len(detections), os.path.basename(image_path))
 
+        saved_path = _save_jpg(img, output_path)
+
         if not detections:
-            cv2.imwrite(output_path, img)
-            return {"output_path": output_path, "detections_count": 0, "success": True, "error": None}
+            return {"output_path": saved_path, "detections_count": 0, "success": True, "error": None}
 
         mask = detector.create_mask(img, detections)
 
         inpainter = get_inpainter()
         cleaned = inpainter.inpaint(img, mask)
 
-        cv2.imwrite(output_path, cleaned)
-        logger.info("Saved cleaned page → %s", output_path)
+        saved_path = _save_jpg(cleaned, output_path)
+        logger.info("Saved cleaned page → %s", saved_path)
 
         return {
-            "output_path": output_path,
+            "output_path": saved_path,
             "detections_count": len(detections),
             "success": True,
             "error": None,
@@ -63,6 +76,7 @@ SUPPORTED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".bmp"}
 def process_chapter_zip(zip_path: str, output_dir: str) -> dict:
     """
     Extract a zip of manga pages, process each image, and re-zip the results.
+    Output files are named sequentially: 1.jpg, 2.jpg, 3.jpg, …
 
     Returns:
         dict with keys: output_zip, total, succeeded, failed, errors
@@ -83,9 +97,9 @@ def process_chapter_zip(zip_path: str, output_dir: str) -> dict:
                     "errors": ["No supported images found in zip"]}
 
         results = []
-        for img_path in image_files:
-            out_name = img_path.name
-            out_path = os.path.join(output_dir, out_name)
+        for idx, img_path in enumerate(image_files, start=1):
+            # Sequential output name: 1.jpg, 2.jpg, …
+            out_path = os.path.join(output_dir, f"{idx}.jpg")
             result = process_single_page(str(img_path), out_path)
             results.append(result)
 
@@ -109,11 +123,11 @@ def process_chapter_zip(zip_path: str, output_dir: str) -> dict:
 
 
 def process_image_list(image_paths: list[str], output_dir: str) -> dict:
-    """Process a list of individual image files."""
+    """Process a list of individual image files — output named sequentially."""
     os.makedirs(output_dir, exist_ok=True)
     results = []
-    for img_path in image_paths:
-        out_path = os.path.join(output_dir, os.path.basename(img_path))
+    for idx, img_path in enumerate(image_paths, start=1):
+        out_path = os.path.join(output_dir, f"{idx}.jpg")
         result = process_single_page(img_path, out_path)
         results.append(result)
 
