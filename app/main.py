@@ -145,7 +145,7 @@ async def clean_sync(file: UploadFile = File(...)):
 
     job_id = str(uuid.uuid4())
     in_path = os.path.join(TEMP_DIR, f"{job_id}_in{ext}")
-    out_path = os.path.join(TEMP_DIR, f"{job_id}_out.png")
+    out_path = os.path.join(TEMP_DIR, f"{job_id}_out.jpg")
 
     async with aiofiles.open(in_path, "wb") as f:
         content = await file.read()
@@ -157,4 +157,5 @@ async def clean_sync(file: UploadFile = File(...)):
     if not result["success"]:
         raise HTTPException(status_code=500, detail=result["error"])
 
-    return FileResponse(out_path, media_type="image/png", filename="cleaned.png")
+    actual_path = result["output_path"]
+    return FileResponse(actual_path, media_type="image/jpeg", filename="cleaned.jpg")
