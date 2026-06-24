@@ -56,6 +56,10 @@ services:
       - ./downloads:/app/downloads
       - ./temp:/app/temp
       - ./models:/app/models
+      - ./app:/app/app
+      - ./utils:/app/utils
+      - ./tasks:/app/tasks
+      - ./bot:/app/bot
     depends_on:
       redis:
         condition: service_healthy
@@ -83,6 +87,10 @@ services:
       - ./downloads:/app/downloads
       - ./temp:/app/temp
       - ./models:/app/models
+      - ./app:/app/app
+      - ./utils:/app/utils
+      - ./tasks:/app/tasks
+      - ./bot:/app/bot
     depends_on:
       redis:
         condition: service_healthy
@@ -101,6 +109,11 @@ services:
     volumes:
       - ./temp:/app/temp
       - ./downloads:/app/downloads
+      - ./app:/app/app
+      - ./utils:/app/utils
+      - ./tasks:/app/tasks
+      - ./bot:/app/bot
+      - ./models:/app/models
     depends_on:
       api:
         condition: service_healthy
